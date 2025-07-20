@@ -1,0 +1,26 @@
+{
+  "summary": {
+    "total_tests": 4,
+    "passed_tests": 2,
+    "pass_rate": 0.5
+  },
+  "detailed_results": {
+    "Matrix Templates": {
+      "status": "success",
+      "templates_tested": 6
+    },
+    "Enhanced Quick Test": {
+      "status": "failed",
+      "error": "HTTP 422"
+    },
+    "Performance Monitoring": {
+      "status": "success",
+      "metrics_available": true
+    },
+    "Template Integration": {
+      "status": "partial",
+      "successful_templates": 0,
+      "total_templates": 3
+    }
+  }
+}
