@@ -6,20 +6,49 @@ import 'package:my_ldpc_app/widgets/graph_canvas.dart';
 import 'package:my_ldpc_app/widgets/results_display.dart';
 import 'package:my_ldpc_app/widgets/resizable_panels.dart';
 import 'package:my_ldpc_app/widgets/status_bar.dart';
-import 'package:my_ldpc_app/pages/optimization_page.dart';
+import 'package:my_ldpc_app/widgets/tutorial_overlay.dart';
+import 'package:my_ldpc_app/utils/tutorial_steps.dart';
 import 'package:provider/provider.dart';
 
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 延迟检查是否需要显示引导页
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appProvider = Provider.of<AppProvider>(context, listen: false);
+      appProvider.checkFirstTimeUser();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Consumer<AppProvider>(
+      builder: (context, appProvider, child) {
+        return Stack(
+          children: [
+            Scaffold(
       appBar: AppBar(
-        title: const Text('LDPC Designer & Optimizer'),
+        title: const Text('LDPC Studio'),
         backgroundColor: Colors.grey[900],
         elevation: 0,
         actions: [
+          // 帮助按钮
+          IconButton(
+            onPressed: () {
+              final appProvider = Provider.of<AppProvider>(context, listen: false);
+              appProvider.showTutorialGuide();
+            },
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Show Tutorial',
+          ),
           Consumer<AppProvider>(
             builder: (context, appProvider, child) {
               return Container(
@@ -60,18 +89,6 @@ class MainScreen extends StatelessWidget {
               );
             },
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const OptimizationPage(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.tune),
-            tooltip: 'Optimization',
-          ),
         ],
       ),
       body: LayoutBuilder(
@@ -93,18 +110,33 @@ class MainScreen extends StatelessWidget {
         },
       ),
       bottomNavigationBar: const StatusBar(),
+            ),
+            
+            // 引导页覆盖层
+            if (appProvider.showTutorial)
+              TutorialOverlay(
+                steps: TutorialSteps.getStepsForScreenWidth(
+                  MediaQuery.of(context).size.width,
+                ),
+                onFinish: () => appProvider.hideTutorial(),
+                onSkip: () => appProvider.skipTutorial(),
+              ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildDesktopLayout(double screenWidth) {
     // 计算初始宽度，调整左侧面板宽度
     final initialLeftWidth = (screenWidth * 0.22).clamp(320.0, 400.0);
-    final initialRightWidth = (screenWidth * 0.28).clamp(350.0, 450.0);
+    // 为右侧面板提供更合适的宽度，特别是在超宽屏上
+    final initialRightWidth = (screenWidth * 0.32).clamp(400.0, 550.0);
 
     return ResizablePanels(
       initialLeftWidth: initialLeftWidth,
       initialRightWidth: initialRightWidth,
-      minPanelWidth: 300.0,
+      minPanelWidth: 280.0,
       leftPanel: const ControlPanel(),
       centerPanel: Container(
         margin: const EdgeInsets.all(8.0),

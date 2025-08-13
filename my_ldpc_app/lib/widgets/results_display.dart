@@ -85,14 +85,14 @@ class ResultsDisplay extends StatelessWidget {
     final hMatrix = results['h_matrix'];
     final gMatrix = results['g_matrix'];
 
-    // 设置高度与 cellSize
+    // 设置高度与 cellSize - 优化矩阵显示空间
     final matrixHeight = isCompact
-        ? 160.0
-        : (constraints.maxHeight * 0.28).clamp(160.0, 240.0);
+        ? 180.0
+        : (constraints.maxHeight * 0.35).clamp(200.0, 320.0);
 
     final cellSize = isCompact
         ? 16.0
-        : (constraints.maxWidth / 25).clamp(18.0, 26.0);
+        : (constraints.maxWidth / 30).clamp(16.0, 24.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,22 +723,51 @@ class ResultsDisplay extends StatelessWidget {
 
     return Column(
       children: [
-        // 图例
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (berSpots.isNotEmpty) ...[
-              Container(width: 16, height: 2, color: Colors.blue),
-              SizedBox(width: 4),
-              Text('BER', style: TextStyle(color: Colors.white, fontSize: 12)),
-            ],
-            if (ferSpots.isNotEmpty) ...[
+        // 美化的图例
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey[800]!.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[600]!, width: 0.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.analytics, color: Colors.white, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'Performance Curves:',
+                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
               SizedBox(width: 16),
-              Container(width: 16, height: 2, color: Colors.red),
-              SizedBox(width: 4),
-              Text('FER', style: TextStyle(color: Colors.white, fontSize: 12)),
+              if (berSpots.isNotEmpty) ...[
+                Container(
+                  width: 20,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2196F3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                SizedBox(width: 6),
+                Text('BER', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+              ],
+              if (ferSpots.isNotEmpty) ...[
+                SizedBox(width: 20),
+                Container(
+                  width: 20,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE53E3E),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                SizedBox(width: 6),
+                Text('FER', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+              ],
             ],
-          ],
+          ),
         ),
         SizedBox(height: 8),
         // 图表
@@ -751,26 +780,43 @@ class ResultsDisplay extends StatelessWidget {
                 show: true,
                 drawHorizontalLine: true,
                 drawVerticalLine: true,
+                horizontalInterval: 1.0,
+                verticalInterval: 0.5,
                 getDrawingHorizontalLine: (value) {
-                  return FlLine(color: Colors.grey[600]!, strokeWidth: 0.5);
+                  return FlLine(
+                    color: Colors.grey[500]!.withValues(alpha: 0.3),
+                    strokeWidth: 0.8,
+                    dashArray: [3, 3],
+                  );
                 },
                 getDrawingVerticalLine: (value) {
-                  return FlLine(color: Colors.grey[600]!, strokeWidth: 0.5);
+                  return FlLine(
+                    color: Colors.grey[500]!.withValues(alpha: 0.3),
+                    strokeWidth: 0.8,
+                    dashArray: [3, 3],
+                  );
                 },
               ),
               titlesData: FlTitlesData(
                 leftTitles: AxisTitles(
-                  axisNameWidget: Text(
-                    'Log10(Error Rate)',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  axisNameWidget: RotatedBox(
+                    quarterTurns: 3,
+                    child: Text(
+                      'Error Rate (log₁₀)',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                   ),
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 45,
+                    reservedSize: 50,
+                    interval: 1.0, // Y轴间隔
                     getTitlesWidget: (value, meta) {
-                      return Text(
-                        value.toStringAsFixed(1),
-                        style: TextStyle(fontSize: 10, color: Colors.white),
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Text(
+                          value.toStringAsFixed(0),
+                          style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w500),
+                        ),
                       );
                     },
                   ),
@@ -778,15 +824,19 @@ class ResultsDisplay extends StatelessWidget {
                 bottomTitles: AxisTitles(
                   axisNameWidget: Text(
                     'SNR (dB)',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 30,
+                    reservedSize: 35,
+                    interval: 0.5, // 显示0.5的间隔
                     getTitlesWidget: (value, meta) {
-                      return Text(
-                        '${value.toInt()}',
-                        style: TextStyle(fontSize: 10, color: Colors.white),
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          value % 1 == 0 ? '${value.toInt()}' : value.toStringAsFixed(1),
+                          style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w500),
+                        ),
                       );
                     },
                   ),
@@ -800,7 +850,7 @@ class ResultsDisplay extends StatelessWidget {
               ),
               borderData: FlBorderData(
                 show: true,
-                border: Border.all(color: Colors.grey[600]!, width: 1),
+                border: Border.all(color: Colors.grey[500]!, width: 1.5),
               ),
               lineBarsData: [
                 // BER曲线
@@ -808,44 +858,120 @@ class ResultsDisplay extends StatelessWidget {
                   LineChartBarData(
                     spots: berSpots,
                     isCurved: true,
-                    color: Colors.blue,
-                    barWidth: 2,
+                    curveSmoothness: 0.3,
+                    color: const Color(0xFF2196F3), // 更亮的蓝色
+                    barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (spot, percent, barData, index) {
                         return FlDotCirclePainter(
-                          radius: 3,
-                          color: Colors.blue,
-                          strokeWidth: 1,
+                          radius: 4,
+                          color: const Color(0xFF2196F3),
+                          strokeWidth: 2,
                           strokeColor: Colors.white,
                         );
                       },
                     ),
-                    belowBarData: BarAreaData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xFF2196F3).withValues(alpha: 0.1),
+                    ),
+                    shadow: Shadow(
+                      color: const Color(0xFF2196F3).withValues(alpha: 0.3),
+                      blurRadius: 3,
+                      offset: const Offset(0, 2),
+                    ),
                   ),
                 // FER曲线
                 if (ferSpots.isNotEmpty)
                   LineChartBarData(
                     spots: ferSpots,
                     isCurved: true,
-                    color: Colors.red,
-                    barWidth: 2,
+                    curveSmoothness: 0.3,
+                    color: const Color(0xFFE53E3E), // 更亮的红色
+                    barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (spot, percent, barData, index) {
                         return FlDotCirclePainter(
-                          radius: 3,
-                          color: Colors.red,
-                          strokeWidth: 1,
+                          radius: 4,
+                          color: const Color(0xFFE53E3E),
+                          strokeWidth: 2,
                           strokeColor: Colors.white,
                         );
                       },
                     ),
-                    belowBarData: BarAreaData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xFFE53E3E).withValues(alpha: 0.1),
+                    ),
+                    shadow: Shadow(
+                      color: const Color(0xFFE53E3E).withValues(alpha: 0.3),
+                      blurRadius: 3,
+                      offset: const Offset(0, 2),
+                    ),
                   ),
               ],
+              // 添加触摸交互
+              lineTouchData: LineTouchData(
+                enabled: true,
+                touchTooltipData: LineTouchTooltipData(
+                  tooltipBgColor: Colors.black87,
+                  tooltipRoundedRadius: 8,
+                  tooltipPadding: const EdgeInsets.all(8),
+                  getTooltipItems: (touchedSpots) {
+                    return touchedSpots.map((spot) {
+                      final snr = spot.x.toStringAsFixed(1);
+                      final errorRate = math.pow(10, spot.y).toStringAsExponential(2);
+                      final lineColor = spot.barIndex == 0 
+                          ? const Color(0xFF2196F3) 
+                          : const Color(0xFFE53E3E);
+                      final label = spot.barIndex == 0 ? 'BER' : 'FER';
+                      
+                      return LineTooltipItem(
+                        '$label\nSNR: $snr dB\nRate: $errorRate',
+                        TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 11,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: '\n●',
+                            style: TextStyle(
+                              color: lineColor,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList();
+                  },
+                ),
+                getTouchedSpotIndicator: (barData, spotIndexes) {
+                  return spotIndexes.map((index) {
+                    return TouchedSpotIndicatorData(
+                      FlLine(
+                        color: barData.color!.withValues(alpha: 0.8),
+                        strokeWidth: 2,
+                        dashArray: [3, 3],
+                      ),
+                      FlDotData(
+                        getDotPainter: (spot, percent, barData, index) {
+                          return FlDotCirclePainter(
+                            radius: 6,
+                            color: barData.color!,
+                            strokeWidth: 2,
+                            strokeColor: Colors.white,
+                          );
+                        },
+                      ),
+                    );
+                  }).toList();
+                },
+              ),
             ),
           ),
         ),

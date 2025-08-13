@@ -29,19 +29,19 @@ class ApiService {
   }
 
   static String get baseUrl {
-    if (kIsWeb) return 'http://127.0.0.1:8000/api';
+    if (kIsWeb) return 'http://127.0.0.1:9999/api';
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000/api';
+      return 'http://10.0.2.2:9999/api';
     }
-    return 'http://127.0.0.1:8000/api';
+    return 'http://127.0.0.1:9999/api';
   }
 
   static String get wsBaseUrl {
-    if (kIsWeb) return 'ws://127.0.0.1:8000';
+    if (kIsWeb) return 'ws://127.0.0.1:9999';
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'ws://10.0.2.2:8000';
+      return 'ws://10.0.2.2:9999';
     }
-    return 'ws://127.0.0.1:8000';
+    return 'ws://127.0.0.1:9999';
   }
 
   /// 编码模块：生成 LDPC 码
@@ -121,17 +121,6 @@ class ApiService {
     }
   }
 
-  /// 优化模块：启动遗传算法优化
-  static Future<Map<String, dynamic>> startOptimization({
-    required Map<String, dynamic> optimizationParams,
-  }) async {
-    try {
-      final response = await _dio.post('/optimize', data: optimizationParams);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
 
   /// 解码模块：LDPC码解码
   static Future<Map<String, dynamic>> decodeWithLLR({
@@ -242,21 +231,21 @@ class ApiService {
   static String _handleDioError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
-        return '连接超时，请检查网络连接';
+        return 'Connection timeout, please check network connection';
       case DioExceptionType.sendTimeout:
-        return '发送超时，请重试';
+        return 'Send timeout, please retry';
       case DioExceptionType.receiveTimeout:
-        return '响应超时，请重试';
+        return 'Response timeout, please retry';
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['error'] ?? '服务器错误';
+        final message = error.response?.data?['error'] ?? 'Server error';
         return 'HTTP $statusCode: $message';
       case DioExceptionType.cancel:
-        return '请求已取消';
+        return 'Request cancelled';
       case DioExceptionType.unknown:
-        return '网络连接失败，请检查网络设置';
+        return 'Network connection failed, please check network settings';
       default:
-        return '未知错误: ${error.message}';
+        return 'Unknown error: ${error.message}';
     }
   }
 }

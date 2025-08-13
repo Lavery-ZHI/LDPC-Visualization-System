@@ -1,4 +1,4 @@
-"""围绕 :class:`LDPCCode` 构建的高级编码器。"""
+"""High-level encoder built around :class:`LDPCCode`."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Sequence
@@ -10,21 +10,21 @@ __all__ = ["LDPCEncoder"]
 
 
 class LDPCEncoder:
-    """将 *k* 个信息位编码为长度为 *n* 的 LDPC 码字。"""
+    """Encode *k* information bits into LDPC codeword of length *n*."""
 
     def __init__(self, h_matrix: Sequence | np.ndarray | sp.spmatrix):
-        # 处理稀疏矩阵输入
+        # Handle sparse matrix input
         if sp.issparse(h_matrix):
-            h_matrix = h_matrix.astype(np.uint8)       # 稀疏域保持整型
-            h_matrix.data %= 2                         # 万一有 2、-1 之类
+            h_matrix = h_matrix.astype(np.uint8)       # keep sparse domain as integer
+            h_matrix.data %= 2                         # in case there are 2, -1, etc.
 
-        # 实例化 LDPC 码模型——这会执行验证。
+        # Instantiate LDPC code model—this will perform validation.
         self.code = LDPCCode(h_matrix)
-        # 延迟属性
+        # Lazy attributes
         self._G: np.ndarray | None = None
 
     # ------------------------------------------------------------------
-    # 公共属性
+    # Public properties
     # ------------------------------------------------------------------
     @property
     def H(self):
@@ -47,26 +47,26 @@ class LDPCEncoder:
         return self.code.rate
 
     # ------------------------------------------------------------------
-    # 核心例程
+    # Core routines
     # ------------------------------------------------------------------
     def generate_g_matrix(self) -> np.ndarray:
-        """返回（并缓存）系统生成矩阵 *G*。"""
+        """Return (and cache) systematic generator matrix *G*."""
         if self._G is None:
-            self._G = self.code.G  # 触发 LDPCCode 内部的延迟计算
+            self._G = self.code.G  # trigger LDPCCode internal lazy computation
         return self._G
 
     def encode(self, info_bits: Sequence[int] | np.ndarray) -> np.ndarray:
-        """将 *info_bits* (长度 *k*) 编码为 LDPC 码字。"""
-        G = self.generate_g_matrix()  # 确保在检查长度*之前*最终确定 *k*
+        """Encode *info_bits* (length *k*) into LDPC codeword."""
+        G = self.generate_g_matrix()  # ensure *k* is finalized *before* checking length
         info_bits = np.asarray(info_bits, dtype=int) % 2
         if info_bits.ndim != 1:
-            raise ValueError("info_bits 必须是一维向量")
+            raise ValueError("info_bits must be a one-dimensional vector")
         if info_bits.size != self.k:
-            raise ValueError(f"info_bits 长度 {info_bits.size} != 预期 k={self.k}")
+            raise ValueError(f"info_bits length {info_bits.size} != expected k={self.k}")
         return (info_bits @ G) % 2
 
     # ------------------------------------------------------------------
-    # 诊断
+    # Diagnostics
     # ------------------------------------------------------------------
     def validate_code_structure(self) -> Dict[str, Any]:
         G = self.generate_g_matrix()
@@ -83,7 +83,7 @@ class LDPCEncoder:
         result.update(self.code.analyze_code_properties())
         return result
 
-    # 用于 API 响应的便捷辅助函数
+    # Convenient helper function for API responses
     def get_matrices(self) -> Dict[str, Any]:
         G = self.generate_g_matrix()
         return {

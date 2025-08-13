@@ -23,11 +23,41 @@ class _MatrixViewerState extends State<MatrixViewer> {
   double _scale = 1.0;
   final TransformationController _transformationController =
       TransformationController();
+  bool _hasInitialized = false;
 
   @override
   void dispose() {
     _transformationController.dispose();
     super.dispose();
+  }
+
+  void _initializeMatrixView(Size availableSize, int rows, int cols) {
+    if (_hasInitialized || rows == 0 || cols == 0) return;
+    
+    // 计算合适的初始缩放比例，确保矩阵完全可见
+    final cellSize = widget.cellSize;
+    final matrixWidth = cols * cellSize;
+    final matrixHeight = rows * cellSize;
+    
+    final scaleX = (availableSize.width - 40) / matrixWidth;
+    final scaleY = (availableSize.height - 40) / matrixHeight;
+    final optimalScale = (scaleX < scaleY ? scaleX : scaleY).clamp(0.1, 1.0);
+    
+    if (optimalScale < 1.0) {
+      _scale = optimalScale;
+      _transformationController.value = Matrix4.identity()..scale(optimalScale);
+    }
+    
+    _hasInitialized = true;
+  }
+
+  @override
+  void didUpdateWidget(MatrixViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 当矩阵数据变化时，重置初始化状态
+    if (oldWidget.matrix != widget.matrix) {
+      _hasInitialized = false;
+    }
   }
 
   @override
@@ -55,7 +85,7 @@ class _MatrixViewerState extends State<MatrixViewer> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact =
-            constraints.maxWidth < 250 || constraints.maxHeight < 120;
+            constraints.maxWidth < 200 || constraints.maxHeight < 150;
 
         return Card(
           child: Padding(
@@ -144,25 +174,38 @@ class _MatrixViewerState extends State<MatrixViewer> {
 
                 // 矩阵显示区域
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[600]!),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: InteractiveViewer(
-                      transformationController: _transformationController,
-                      minScale: 0.1,
-                      maxScale: 8.0,
-                      scaleEnabled: false, // 禁用滚轮缩放
-                      panEnabled: true, // 保留拖拽平移
-                      onInteractionUpdate: (details) {
-                        setState(() {
-                          _scale = _transformationController.value
-                              .getMaxScaleOnAxis();
-                        });
-                      },
-                      child: _buildMatrixGrid(matrix),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, matrixConstraints) {
+                      // 初始化矩阵视图的最佳缩放
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _initializeMatrixView(
+                          Size(matrixConstraints.maxWidth, matrixConstraints.maxHeight),
+                          rows,
+                          cols,
+                        );
+                      });
+                      
+                      return Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[600]!),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: InteractiveViewer(
+                          transformationController: _transformationController,
+                          minScale: 0.1,
+                          maxScale: 8.0,
+                          scaleEnabled: false, // 禁用滚轮缩放
+                          panEnabled: true, // 保留拖拽平移
+                          onInteractionUpdate: (details) {
+                            setState(() {
+                              _scale = _transformationController.value
+                                  .getMaxScaleOnAxis();
+                            });
+                          },
+                          child: _buildMatrixGrid(matrix),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

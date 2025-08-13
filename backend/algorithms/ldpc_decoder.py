@@ -1,17 +1,17 @@
-"""围绕 :class:`LDPCCode` 构建的高级解码器。"""
+"""High-level LDPC decoder built around :class:`LDPCCode`."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Sequence, Tuple, Optional
 import numpy as np
 import scipy.sparse as sp
 from models.ldpc_models import LDPCCode
-from itertools import combinations  # 新增：用于 OSD 组合生成
+from itertools import combinations  # For OSD combination generation
 
 __all__ = ["LDPCDecoder"]
 
 
 class LDPCDecoder:
-    """使用置信传播（BP）算法解码 LDPC 码字。"""
+    """Decode LDPC codewords using Belief Propagation (BP) algorithms."""
 
     def __init__(
         self,
@@ -20,45 +20,45 @@ class LDPCDecoder:
         min_sum_scaling: float = 0.9,
         convergence_threshold: float = 1e-6,
         early_termination: bool = True,
-        osd_order: int = 0  # 新增：OSD 订单，控制翻转比特数 (0 表示简单翻转最低置信位)
+        osd_order: int = 0  # OSD order for post-processing (0 = basic post-processing)
     ):
         """
-        初始化 LDPC 解码器。
+        Initialize LDPC decoder.
 
-        参数:
-            h_matrix: 奇偶校验矩阵 H
-            max_iterations: 最大迭代次数
-            min_sum_scaling: Min-Sum 算法缩放因子
-            convergence_threshold: 收敛阈值
-            early_termination: 是否启用早期终止
-            osd_order: OSD 后处理订单 (默认 0，表示基本后处理)
+        Args:
+            h_matrix: Parity check matrix H
+            max_iterations: Maximum number of iterations
+            min_sum_scaling: Min-Sum algorithm scaling factor
+            convergence_threshold: Convergence threshold
+            early_termination: Enable early termination
+            osd_order: OSD post-processing order (default 0)
         """
-        # 处理稀疏矩阵输入
+        # Handle sparse matrix input
         if sp.issparse(h_matrix):
             h_matrix = h_matrix.astype(np.uint8)  # type: ignore
             h_matrix.data = h_matrix.data % 2  # type: ignore
 
-        # 实例化 LDPC 码模型
+        # Instantiate LDPC code model
         self.code = LDPCCode(h_matrix)
         
-        # 解码参数
+        # Decoder parameters
         self.max_iterations = max_iterations
         self.min_sum_scaling = min_sum_scaling
         self.convergence_threshold = convergence_threshold
         self.early_termination = early_termination
-        self.osd_order = osd_order  # 新增
+        self.osd_order = osd_order
         
-        # 预计算邻接信息以提高效率
+        # Precompute adjacency information for efficiency
         self._precompute_adjacency()
         
-        # 解码统计信息
+        # Decoding statistics
         self.last_decode_stats = {}
         
-        # 调试选项
+        # Debug options
         self.debug_mode = False
 
     # ------------------------------------------------------------------
-    # 公共属性
+    # Public properties
     # ------------------------------------------------------------------
     @property
     def H(self):
@@ -81,15 +81,15 @@ class LDPCDecoder:
         return self.code.rate
 
     # ------------------------------------------------------------------
-    # 预计算邻接信息
+    # Precompute adjacency information
     # ------------------------------------------------------------------
     def _precompute_adjacency(self):
-        """预计算变量节点和校验节点的邻接信息。"""
+        """Precompute adjacency lists for variable and check nodes."""
         H_coo = self.H.tocoo()  # type: ignore
         
-        # 变量节点到校验节点的邻接列表
+        # Variable node to check node adjacency lists
         self.var_to_check = [[] for _ in range(self.n)]
-        # 校验节点到变量节点的邻接列表
+        # Check node to variable node adjacency lists
         self.check_to_var = [[] for _ in range(self.m)]
         
         for i, j in zip(H_coo.row, H_coo.col):
@@ -97,44 +97,44 @@ class LDPCDecoder:
             self.check_to_var[i].append(j)
 
     # ------------------------------------------------------------------
-    # LLR 计算
+    # LLR calculation
     # ------------------------------------------------------------------
     def awgn_llr(self, received_signal: np.ndarray, noise_variance: float) -> np.ndarray:
         """
-        计算 AWGN 信道的对数似然比（LLR）。
+        Calculate Log-Likelihood Ratio (LLR) for AWGN channel.
         
-        参数:
-            received_signal: 接收信号 (长度 n)
-            noise_variance: 噪声方差 σ²
+        Args:
+            received_signal: Received signal (length n)
+            noise_variance: Noise variance σ²
             
-        返回:
-            LLR 值数组
+        Returns:
+            Array of LLR values
         """
         received_signal = np.asarray(received_signal, dtype=float)
         if received_signal.size != self.n:
-            raise ValueError(f"接收信号长度 {received_signal.size} != 码字长度 {self.n}")
+            raise ValueError(f"Received signal length {received_signal.size} != codeword length {self.n}")
         
-        # LLR = 2 * r / σ² (假设发送 +1/-1)
+        # LLR = 2 * r / σ² (assuming transmitted +1/-1)
         llr = 2.0 * received_signal / noise_variance
         return llr
 
     def bsc_llr(self, received_bits: np.ndarray, crossover_probability: float) -> np.ndarray:
         """
-        计算二进制对称信道（BSC）的对数似然比（LLR）。
+        Calculate Log-Likelihood Ratio (LLR) for Binary Symmetric Channel (BSC).
         
-        参数:
-            received_bits: 接收比特 (0/1, 长度 n)
-            crossover_probability: 交叉概率 p
+        Args:
+            received_bits: Received bits (0/1, length n)
+            crossover_probability: Crossover probability p
             
-        返回:
-            LLR 值数组
+        Returns:
+            Array of LLR values
         """
         received_bits = np.asarray(received_bits, dtype=int) % 2
         if received_bits.size != self.n:
-            raise ValueError(f"接收比特长度 {received_bits.size} != 码字长度 {self.n}")
+            raise ValueError(f"Received bits length {received_bits.size} != codeword length {self.n}")
         
         if crossover_probability <= 0 or crossover_probability >= 0.5:
-            raise ValueError("交叉概率必须在 (0, 0.5) 范围内")
+            raise ValueError("Crossover probability must be in range (0, 0.5)")
         
         # LLR = log((1-p)/p) * (1-2*r)
         log_ratio = np.log((1 - crossover_probability) / crossover_probability)
@@ -142,7 +142,7 @@ class LDPCDecoder:
         return llr
 
     # ------------------------------------------------------------------
-    # BP 解码算法 (Min-Sum)
+    # BP decoding algorithms (Min-Sum)
     # ------------------------------------------------------------------
     def decode(
         self,
@@ -150,29 +150,29 @@ class LDPCDecoder:
         algorithm: str = "min_sum"
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
-        使用 BP 算法解码 LDPC 码字。
+        Decode LDPC codeword using BP algorithm.
         
-        参数:
-            llr_input: 输入 LLR 值 (长度 n)
-            algorithm: 解码算法 ("min_sum" 或 "sum_product")
+        Args:
+            llr_input: Input LLR values (length n)
+            algorithm: Decoding algorithm ("min_sum" or "sum_product")
             
-        返回:
-            (解码比特, 解码统计信息)
+        Returns:
+            (decoded_bits, decoding_statistics)
         """
         llr_input = np.asarray(llr_input, dtype=float)
         if llr_input.size != self.n:
-            raise ValueError(f"LLR 输入长度 {llr_input.size} != 码字长度 {self.n}")
+            raise ValueError(f"LLR input length {llr_input.size} != codeword length {self.n}")
         
         if algorithm == "min_sum" or algorithm == "min-sum":
             return self._decode_min_sum(llr_input)
         elif algorithm == "sum_product" or algorithm == "sum-product":
             return self._decode_sum_product(llr_input)
         else:
-            raise ValueError(f"不支持的解码算法: {algorithm}")
+            raise ValueError(f"Unsupported decoding algorithm: {algorithm}")
 
     def _decode_min_sum(self, llr_input: np.ndarray) -> Tuple[np.ndarray, Dict[str, Any]]:
-        """Min-Sum 算法实现（优化：引入 Normalized Min-Sum 变体，并添加 OSD 后处理）。"""
-        # 初始化消息
+        """Min-Sum algorithm implementation with Normalized Min-Sum variant and OSD post-processing."""
+        # Initialize messages
         v2c_messages = {}
         c2v_messages = {}
         
@@ -186,14 +186,14 @@ class LDPCDecoder:
             for var_idx in self.check_to_var[check_idx]:
                 c2v_messages[check_idx][var_idx] = 0.0
         
-        # 计算平均校验节点度，用于归一化因子
+        # Calculate average check node degree for normalization factor
         avg_check_degree = np.mean([len(self.check_to_var[i]) for i in range(self.m)])
-        normalization_factor = 1.0 / (0.75 + 0.25 * avg_check_degree / 4.0)  # 示例归一化公式
+        normalization_factor = 1.0 / (0.75 + 0.25 * avg_check_degree / 4.0)
         
         converged = False
         osd_applied = False
         for iteration in range(self.max_iterations):
-            # 校验节点更新
+            # Check node update
             for check_idx in range(self.m):
                 connected_vars = self.check_to_var[check_idx]
                 
@@ -211,12 +211,12 @@ class LDPCDecoder:
                     sign_product = np.prod(signs)
                     min_abs = min(abs_messages)
                     
-                    # 应用归一化因子
+                    # Apply normalization factor
                     c2v_messages[check_idx][target_var] = (
                         self.min_sum_scaling * sign_product * min_abs * normalization_factor
                     )
             
-            # 变量节点更新
+            # Variable node update
             for var_idx in range(self.n):
                 connected_checks = self.var_to_check[var_idx]
                 
@@ -227,7 +227,7 @@ class LDPCDecoder:
                         message_sum += c2v_messages[check_idx][var_idx]
                     v2c_messages[var_idx][target_check] = message_sum
             
-            # 计算后验 LLR 和硬判决
+            # Calculate posterior LLR and hard decision
             posterior_llr = llr_input.copy()
             for var_idx in range(self.n):
                 for check_idx in self.var_to_check[var_idx]:
@@ -241,7 +241,7 @@ class LDPCDecoder:
                     converged = True
                     break
         
-        # 新增：OSD 后处理（如果未收敛，尝试翻转低置信比特）
+        # OSD post-processing (if not converged, try flipping low-confidence bits)
         if not converged and self.osd_order >= 0:
             osd_applied = True
             uncertain_indices = np.argsort(np.abs(posterior_llr))[:self.osd_order + 1]
@@ -254,7 +254,7 @@ class LDPCDecoder:
                     converged = True
                     break
         
-        # 统计信息
+        # Statistics
         final_syndrome = (self.H @ decoded_bits) % 2  # type: ignore
         stats = {
             "iterations": iteration + 1,
@@ -262,20 +262,20 @@ class LDPCDecoder:
             "syndrome_weight": int(np.sum(final_syndrome)),
             "final_llr": posterior_llr.tolist(),
             "parity_check_satisfied": bool(np.all(final_syndrome == 0)),
-            "osd_applied": osd_applied  # 新增：指示是否应用了 OSD
+            "osd_applied": osd_applied
         }
         
         self.last_decode_stats = stats
         return decoded_bits, stats
 
     def _decode_sum_product(self, llr_input: np.ndarray) -> Tuple[np.ndarray, Dict[str, Any]]:
-        """Sum-Product 算法实现（优化：转移到对数域以提升数值稳定性，并添加 OSD 后处理）。"""
-        # 辅助函数：对数域加法
+        """Sum-Product algorithm implementation with log-domain operations for numerical stability and OSD post-processing."""
+        # Helper function: log-domain addition
         def log_sum_exp(a, b):
             max_val = np.maximum(a, b)
             return max_val + np.log1p(np.exp(-np.abs(a - b)))
         
-        # 初始化消息（在对数域：存储 log(P0 / P1) = LLR）
+        # Initialize messages (in log domain: store log(P0 / P1) = LLR)
         v2c_messages = {}
         c2v_messages = {}
         
@@ -287,12 +287,12 @@ class LDPCDecoder:
         for check_idx in range(self.m):
             c2v_messages[check_idx] = {}
             for var_idx in self.check_to_var[check_idx]:
-                c2v_messages[check_idx][var_idx] = 0.0  # LLR=0 表示 P0=P1=0.5
+                c2v_messages[check_idx][var_idx] = 0.0  # LLR=0 means P0=P1=0.5
         
         converged = False
         osd_applied = False
         for iteration in range(self.max_iterations):
-            # 校验节点更新（对数域 tanh 规则）
+            # Check node update (log-domain tanh rule)
             for check_idx in range(self.m):
                 connected_vars = self.check_to_var[check_idx]
                 
@@ -303,15 +303,15 @@ class LDPCDecoder:
                         c2v_messages[check_idx][target_var] = 0.0
                         continue
                     
-                    # 对数域 Sum-Product：prod tanh(v2c / 2) * 2 * atanh
+                    # Log-domain Sum-Product: prod tanh(v2c / 2) * 2 * atanh
                     tanh_msgs = [np.tanh(v2c_messages[v][check_idx] / 2.0) for v in other_vars]
                     prod_tanh = np.prod(tanh_msgs)
                     
-                    # 优化：使用 atanh 并剪裁以避免数值不稳定
+                    # Clip to avoid numerical instability
                     prod_tanh = np.clip(prod_tanh, -1 + 1e-10, 1 - 1e-10)
                     c2v_messages[check_idx][target_var] = 2.0 * np.arctanh(prod_tanh)
             
-            # 变量节点更新（对数域简单加法）
+            # Variable node update (log-domain simple addition)
             for var_idx in range(self.n):
                 connected_checks = self.var_to_check[var_idx]
                 
@@ -322,7 +322,7 @@ class LDPCDecoder:
                         message_sum += c2v_messages[check_idx][var_idx]
                     v2c_messages[var_idx][target_check] = message_sum
             
-            # 计算后验 LLR（同变量节点更新）
+            # Calculate posterior LLR (same as variable node update)
             posterior_llr = llr_input.copy()
             for var_idx in range(self.n):
                 for check_idx in self.var_to_check[var_idx]:
@@ -336,7 +336,7 @@ class LDPCDecoder:
                     converged = True
                     break
         
-        # 新增：OSD 后处理（如果未收敛，尝试翻转低置信比特）
+        # OSD post-processing (if not converged, try flipping low-confidence bits)
         if not converged and self.osd_order >= 0:
             osd_applied = True
             uncertain_indices = np.argsort(np.abs(posterior_llr))[:self.osd_order + 1]
@@ -349,7 +349,7 @@ class LDPCDecoder:
                     converged = True
                     break
         
-        # 统计信息
+        # Statistics
         final_syndrome = (self.H @ decoded_bits) % 2  # type: ignore
         stats = {
             "iterations": iteration + 1,
@@ -357,47 +357,47 @@ class LDPCDecoder:
             "syndrome_weight": int(np.sum(final_syndrome)),
             "final_llr": posterior_llr.tolist(),
             "parity_check_satisfied": bool(np.all(final_syndrome == 0)),
-            "osd_applied": osd_applied  # 新增：指示是否应用了 OSD
+            "osd_applied": osd_applied
         }
         
         self.last_decode_stats = stats
         return decoded_bits, stats
 
     # ------------------------------------------------------------------
-    # 辅助方法
+    # Utility methods
     # ------------------------------------------------------------------
     def validate_codeword(self, codeword: np.ndarray) -> bool:
-        """验证码字是否满足奇偶校验约束。"""
+        """Validate if codeword satisfies parity check constraints."""
         codeword = np.asarray(codeword, dtype=int) % 2
         if codeword.size != self.n:
-            raise ValueError(f"码字长度 {codeword.size} != 期望长度 {self.n}")
+            raise ValueError(f"Codeword length {codeword.size} != expected length {self.n}")
         
         syndrome = (self.H @ codeword) % 2  # type: ignore
         return bool(np.all(syndrome == 0))
 
     def get_syndrome(self, codeword: np.ndarray) -> np.ndarray:
-        """计算码字的校验子。"""
+        """Calculate syndrome of codeword."""
         codeword = np.asarray(codeword, dtype=int) % 2
         if codeword.size != self.n:
-            raise ValueError(f"码字长度 {codeword.size} != 期望长度 {self.n}")
+            raise ValueError(f"Codeword length {codeword.size} != expected length {self.n}")
         
         return (self.H @ codeword) % 2  # type: ignore
 
     def extract_information_bits(self, codeword: np.ndarray) -> np.ndarray:
-        """从解码后的码字中提取信息位。"""
+        """Extract information bits from decoded codeword."""
         codeword = np.asarray(codeword, dtype=int) % 2
         if codeword.size != self.n:
-            raise ValueError(f"码字长度 {codeword.size} != 期望长度 {self.n}")
+            raise ValueError(f"Codeword length {codeword.size} != expected length {self.n}")
         
-        # 根据生成矩阵的单位子矩阵所在列提取信息位
+        # Extract information bits based on systematic generator matrix columns
         info_cols = self.code.info_cols
         return codeword[info_cols]
 
     # ------------------------------------------------------------------
-    # 诊断和分析
+    # Diagnostics and analysis
     # ------------------------------------------------------------------
     def analyze_decoder_performance(self) -> Dict[str, Any]:
-        """分析解码器性能和结构。"""
+        """Analyze decoder performance and structure."""
         var_degrees = [len(self.var_to_check[i]) for i in range(self.n)]
         check_degrees = [len(self.check_to_var[i]) for i in range(self.m)]
         
@@ -425,12 +425,12 @@ class LDPCDecoder:
         return analysis
 
     def compare_algorithms(self, llr_input: np.ndarray) -> Dict[str, Any]:
-        """比较Min-Sum和Sum-Product算法的性能。"""
+        """Compare performance of Min-Sum and Sum-Product algorithms."""
         llr_input = np.asarray(llr_input, dtype=float)
         
         results = {}
         
-        # 测试Min-Sum算法
+        # Test Min-Sum algorithm
         try:
             min_sum_bits, min_sum_stats = self._decode_min_sum(llr_input)
             results['min_sum'] = {
@@ -444,7 +444,7 @@ class LDPCDecoder:
                 'error': str(e)
             }
         
-        # 测试Sum-Product算法
+        # Test Sum-Product algorithm
         try:
             sum_prod_bits, sum_prod_stats = self._decode_sum_product(llr_input)
             results['sum_product'] = {
@@ -458,7 +458,7 @@ class LDPCDecoder:
                 'error': str(e)
             }
         
-        # 比较结果
+        # Compare results
         if results['min_sum']['success'] and results['sum_product']['success']:
             min_sum_converged = results['min_sum']['stats']['converged']
             sum_prod_converged = results['sum_product']['stats']['converged']

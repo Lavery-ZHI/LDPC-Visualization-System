@@ -26,6 +26,10 @@ class Edge {
 class AppProvider with ChangeNotifier {
   // --- 状态变量 ---
   bool _isLoading = false;
+  
+  // 引导页状态
+  bool _showTutorial = false;
+  bool _isFirstTime = true;
   // 【修正】将结果设为非空，并给一个初始值，可以避免很多null-check错误
   Map<String, dynamic> _simulationResults = {
     'message': 'Ready. Draw your graph and run simulation.',
@@ -58,6 +62,10 @@ class AppProvider with ChangeNotifier {
   final List<Edge> _edges = [];
   int _vnCounter = 0; // 变量节点计数器
   int _cnCounter = 0; // 校验节点计数器
+  
+  // 【新增】已删除的节点ID集合，用于ID回收
+  final Set<int> _deletedVnIds = {}; // 已删除的变量节点ID
+  final Set<int> _deletedCnIds = {}; // 已删除的校验节点ID
 
   Node? _selectedNode;
 
@@ -121,15 +129,30 @@ class AppProvider with ChangeNotifier {
   bool get earlyTermination => _earlyTermination;
   List<int> get receivedBits => List.unmodifiable(_receivedBits);
   List<int> get infoBits => List.unmodifiable(_infoBits);
+  
+  // 引导页相关 getters
+  bool get showTutorial => _showTutorial;
+  bool get isFirstTime => _isFirstTime;
 
   // --- 方法 ---
 
-  // 【修正】将 addNode 拆分为两个具体的方法
+  // 【修正】将 addNode 拆分为两个具体的方法，支持ID回收
   void addVariableNode() {
-    _vnCounter++;
+    // 尝试从已删除的ID中回收一个最小的ID
+    int nodeId;
+    if (_deletedVnIds.isNotEmpty) {
+      // 回收最小的已删除ID
+      nodeId = _deletedVnIds.reduce((a, b) => a < b ? a : b);
+      _deletedVnIds.remove(nodeId);
+    } else {
+      // 没有可回收的ID，使用新的ID
+      _vnCounter++;
+      nodeId = _vnCounter;
+    }
+    
     _nodes.add(
       Node(
-        id: 'V$_vnCounter',
+        id: 'V$nodeId',
         position: Offset(250.0 + Random().nextDouble() * 100, 200.0),
         isVariableNode: true, // 标记为变量节点
       ),
@@ -138,10 +161,21 @@ class AppProvider with ChangeNotifier {
   }
 
   void addCheckNode() {
-    _cnCounter++;
+    // 尝试从已删除的ID中回收一个最小的ID
+    int nodeId;
+    if (_deletedCnIds.isNotEmpty) {
+      // 回收最小的已删除ID
+      nodeId = _deletedCnIds.reduce((a, b) => a < b ? a : b);
+      _deletedCnIds.remove(nodeId);
+    } else {
+      // 没有可回收的ID，使用新的ID
+      _cnCounter++;
+      nodeId = _cnCounter;
+    }
+    
     _nodes.add(
       Node(
-        id: 'C$_cnCounter',
+        id: 'C$nodeId',
         position: Offset(550.0 + Random().nextDouble() * 100, 200.0),
         isVariableNode: false, // 标记为校验节点
       ),
@@ -193,6 +227,10 @@ class AppProvider with ChangeNotifier {
     _vnCounter = 0;
     _cnCounter = 0;
     _selectedNode = null;
+    
+    // 【新增】清空ID回收集合
+    _deletedVnIds.clear();
+    _deletedCnIds.clear();
 
     // 重置加载状态
     _isLoading = false;
@@ -247,8 +285,24 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  //—— 删除节点 ——//
+  //—— 删除节点，支持ID回收 ——//
   void removeNode(String nodeId) {
+    // 提取节点的数字ID并添加到回收集合中
+    if (nodeId.startsWith('V')) {
+      // 变量节点
+      final numericId = int.tryParse(nodeId.substring(1));
+      if (numericId != null) {
+        _deletedVnIds.add(numericId);
+      }
+    } else if (nodeId.startsWith('C')) {
+      // 校验节点
+      final numericId = int.tryParse(nodeId.substring(1));
+      if (numericId != null) {
+        _deletedCnIds.add(numericId);
+      }
+    }
+    
+    // 删除节点
     _nodes.removeWhere((node) => node.id == nodeId);
     // 同时删除与该节点相关的边
     _edges.removeWhere((edge) => edge.fromId == nodeId || edge.toId == nodeId);
@@ -876,7 +930,7 @@ class AppProvider with ChangeNotifier {
     required int maxIterations,
   }) async {
     if (_encodeResults['h_matrix'] == null) {
-      throw Exception('请先生成校验矩阵');
+      throw Exception('Please generate parity check matrix first');
     }
 
     _isLoading = true;
@@ -885,7 +939,7 @@ class AppProvider with ChangeNotifier {
     try {
       final hMatrix = _convertToIntMatrix(_encodeResults['h_matrix']);
       if (hMatrix == null) {
-        throw Exception('校验矩阵格式错误');
+        throw Exception('Invalid parity check matrix format');
       }
 
       final data = await ApiService.runSimulation(
@@ -898,13 +952,13 @@ class AppProvider with ChangeNotifier {
       );
 
       _simulationResults = {
-        'message': data['message'] ?? '仿真完成',
+        'message': data['message'] ?? 'Simulation completed',
         'simulation_results': data['simulation_results'],
         'timestamp': DateTime.now().toIso8601String(),
       };
     } catch (e) {
       _simulationResults = {
-        'message': '仿真失败: ${e.toString()}',
+        'message': 'Simulation failed: ${e.toString()}',
         'error': e.toString(),
       };
       rethrow;
@@ -1014,6 +1068,31 @@ class AppProvider with ChangeNotifier {
     double u1 = random.nextDouble();
     double u2 = random.nextDouble();
     return sqrt(-2 * log(u1)) * cos(2 * pi * u2);
+  }
+
+  // 引导页控制方法
+  void showTutorialGuide() {
+    _showTutorial = true;
+    notifyListeners();
+  }
+
+  void hideTutorial() {
+    _showTutorial = false;
+    _isFirstTime = false;
+    notifyListeners();
+  }
+
+  void skipTutorial() {
+    _showTutorial = false;
+    _isFirstTime = false;
+    notifyListeners();
+  }
+
+  void checkFirstTimeUser() {
+    if (_isFirstTime) {
+      _showTutorial = true;
+      notifyListeners();
+    }
   }
 
   @override

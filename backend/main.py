@@ -24,7 +24,7 @@ from models.ldpc_models import LDPCCode
 
 app = FastAPI(
     title="LDPC SYSTEM API",
-    description="基于FastAPI的LDPC编码、仿真和优化后端服务",
+    description="FastAPI-based LDPC encoding, simulation and optimization backend service",
     version="1.0.0",
 )
 
@@ -38,15 +38,15 @@ app.add_middleware(
 )
 
 
-@app.get("/", tags=["基本信息"])
+@app.get("/", tags=["Basic Info"])
 def read_root():
     return {
-        "message": "LDPC可视化系统API服务运行中",
+        "message": "LDPC visualization system API service running",
         "docs_url": "/docs",
         "redoc_url": "/redoc"
     }
 
-@app.get("/api/status", tags=["基本信息"])
+@app.get("/api/status", tags=["Basic Info"])
 def check_status():
     return {
         "status": "online",
@@ -121,8 +121,8 @@ async def get_performance_metrics():
             "error": str(e)
         }
 
-@app.get("/api/generate-from-graph", tags=["LDPC生成"])
-@app.post("/api/generate-from-graph", tags=["LDPC生成"])
+@app.get("/api/generate-from-graph", tags=["LDPC Generation"])
+@app.post("/api/generate-from-graph", tags=["LDPC Generation"])
 @safe_operation("matrix_validation")
 async def generate_ldpc_from_graph(template_name: str = "simple_6_3"):
     """
@@ -177,37 +177,37 @@ async def generate_ldpc_from_graph(template_name: str = "simple_6_3"):
         error_handler.log_error(error_details)
         return error_handler.format_error_response(error_details)
 
-@app.post("/api/simulate-from-graph", tags=["LDPC仿真"])
+@app.post("/api/simulate-from-graph", tags=["LDPC Simulation"])
 async def simulate_from_graph(graph_data: dict = None):
     """
-    从图结构运行LDPC仿真
+    Run LDPC simulation from graph structure
     """
     try:
-        # 使用默认的LDPC码进行仿真
+        # Use default LDPC code for simulation
         h_matrix = np.array([
             [1, 1, 1, 0, 0, 0],
             [0, 1, 1, 1, 0, 0],
             [0, 0, 1, 1, 1, 1]
         ], dtype=int)
         
-        # 运行快速仿真
+        # Run quick simulation
         encoder = LDPCEncoder(h_matrix)
         decoder = LDPCDecoder(h_matrix)
         
-        # 生成随机信息位
+        # Generate random information bits
         info_bits = np.random.randint(0, 2, size=3)
         codeword = encoder.encode(info_bits)
         
-        # 添加噪声（简单的BSC模型）
+        # Add noise (simple BSC model)
         error_prob = 0.1
         received = codeword.copy()
         errors = np.random.random(len(codeword)) < error_prob
         received[errors] = 1 - received[errors]
         
-        # 解码
+        # Decode
         decoded_bits, stats = decoder.decode(received, algorithm='min-sum')
         
-        # 计算BER
+        # Calculate BER
         bit_errors = np.sum(decoded_bits != info_bits)
         ber = bit_errors / len(info_bits)
         
@@ -231,52 +231,52 @@ async def simulate_from_graph(graph_data: dict = None):
         }
 
 
-@app.post("/api/v1/encode", response_model=EncodeResponse, tags=["编码"])
+@app.post("/api/v1/encode", response_model=EncodeResponse, tags=["Encoding"])
 async def encode_ldpc(request: EncodeRequest):
     """
-    从输入生成LDPC码并返回编码结果
+    Generate LDPC code from input and return encoding results
 
-    支持两种输入方式:
-    - 方式1: 通过图形数据(nodes, edges)描述LDPC码
-    - 方式2: 直接提供H矩阵和可选的信息位
+    Supports two input modes:
+    - Mode 1: Describe LDPC code through graph data (nodes, edges)
+    - Mode 2: Directly provide H matrix and optional information bits
 
-    返回:
-    - H矩阵、G矩阵和码率等信息
-    - 如果提供了信息位，还会返回编码后的码字
+    Returns:
+    - H matrix, G matrix and code rate information
+    - If information bits are provided, also returns encoded codeword
     """
     try:
-        # 决定输入方式
+        # Determine input mode
         if request.h_matrix is not None:
-            # 方式2: 直接提供H矩阵
+            # Mode 2: Directly provide H matrix
             h_matrix = np.array(request.h_matrix, dtype=int)
             encoder = LDPCEncoder(h_matrix)
         else:
-            # 方式1: 通过图形数据
+            # Mode 1: Through graph data
             if not request.nodes or not request.edges:
-                raise ValueError("使用图形模式时必须提供nodes和edges")
+                raise ValueError("nodes and edges must be provided when using graph mode")
 
-            # 从图形数据转换为H矩阵
+            # Convert graph data to H matrix
             nodes = [node.dict() for node in request.nodes]
             edges = [edge.dict() for edge in request.edges]
             ldpc_code = LDPCCode.from_graph_data(nodes, edges)
 
-            # 创建编码器
+            # Create encoder
             encoder = LDPCEncoder(ldpc_code.H)
 
-        # 生成G矩阵
+        # Generate G matrix
         g_matrix = encoder.generate_g_matrix()
 
-        # 获取矩阵和码参数
+        # Get matrix and code parameters
         matrices = encoder.get_matrices()
 
-        # 如果提供了信息位，则编码生成码字
+        # If information bits are provided, encode to generate codeword
         codeword = None
         if request.info_bits is not None:
             if len(request.info_bits) != encoder.k:
-                raise ValueError(f"信息位长度应为{encoder.k}，但收到的长度为{len(request.info_bits)}")
+                raise ValueError(f"Information bits length should be {encoder.k}, but received length {len(request.info_bits)}")
             codeword = encoder.encode(request.info_bits).tolist()
 
-        # 构建响应
+        # Build response
         return EncodeResponse(
             h_matrix=matrices["h_matrix"],
             g_matrix=matrices["g_matrix"],
@@ -285,31 +285,31 @@ async def encode_ldpc(request: EncodeRequest):
             k=int(encoder.k),
             m=int(encoder.m),
             codeword=codeword,
-            message="LDPC码生成成功"
+            message="LDPC code generated successfully"
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"编码失败: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Encoding failed: {str(e)}")
 
-# 解码接口
-@app.post("/api/v1/decode", response_model=DecodeResponse, tags=["解码"])
+# Decoding interface
+@app.post("/api/v1/decode", response_model=DecodeResponse, tags=["Decoding"])
 async def decode_ldpc(request: DecodeRequest):
     """
-    LDPC码解码接口
+    LDPC code decoding interface
 
-    支持多种输入方式:
-    - 方式1: 直接提供LLR (对数似然比)
-    - 方式2: 提供接收信号 + AWGN信道参数
-    - 方式3: 提供接收比特 + BSC信道参数
+    Supports multiple input modes:
+    - Mode 1: Directly provide LLR (Log Likelihood Ratio)
+    - Mode 2: Provide received signal + AWGN channel parameters
+    - Mode 3: Provide received bits + BSC channel parameters
 
-    返回:
-    - 解码后的码字和信息位
-    - 解码统计信息和性能指标
+    Returns:
+    - Decoded codeword and information bits
+    - Decoding statistics and performance metrics
     """
     try:
-        # 创建H矩阵
+        # Create H matrix
         h_matrix = np.array(request.h_matrix, dtype=int)
         
-        # 创建解码器
+        # Create decoder
         decoder = LDPCDecoder(
             h_matrix,
             max_iterations=request.max_iterations,
@@ -317,48 +317,48 @@ async def decode_ldpc(request: DecodeRequest):
             min_sum_scaling=request.min_sum_scaling
         )
         
-        # 计算LLR
+        # Calculate LLR
         if request.llr is not None:
-            # 方式1: 直接使用提供的LLR
+            # Mode 1: Directly use provided LLR
             llr = np.array(request.llr, dtype=float)
         elif request.received_signal is not None:
-            # 方式2: AWGN信道 - 可使用 noise_variance 或 snr_db
+            # Mode 2: AWGN channel - can use noise_variance or snr_db
             if request.channel_type != "awgn":
-                raise ValueError("使用received_signal时channel_type必须为awgn")
+                raise ValueError("Channel type must be 'awgn' when using received_signal")
 
-            # 若未提供 noise_variance，则尝试用 snr_db 推算
+            # If noise_variance not provided, calculate from snr_db
             noise_var = request.noise_variance
             if noise_var is None:
                 if request.snr_db is None:
-                    raise ValueError("AWGN信道需要提供noise_variance或snr_db")
+                    raise ValueError("AWGN channel requires either noise_variance or snr_db")
                 snr_lin = 10 ** (request.snr_db / 10)
-                # σ² = 1 / (2 * SNR) (BPSK, 单位能量)
+                # σ² = 1 / (2 * SNR) (BPSK, unit energy)
                 noise_var = 1.0 / (2.0 * snr_lin)
 
             received_signal = np.array(request.received_signal, dtype=float)
             llr = decoder.awgn_llr(received_signal, noise_var)
         elif request.received_bits is not None:
-            # 方式3: BSC信道
+            # Mode 3: BSC channel
             if request.channel_type != "bsc":
-                raise ValueError("使用received_bits时channel_type必须为bsc")
+                raise ValueError("Channel type must be 'bsc' when using received_bits")
             if request.crossover_probability is None:
-                raise ValueError("BSC信道需要提供crossover_probability")
+                raise ValueError("BSC channel requires crossover_probability")
             received_bits = np.array(request.received_bits, dtype=int)
             llr = decoder.bsc_llr(received_bits, request.crossover_probability)
         else:
-            raise ValueError("必须提供LLR、received_signal或received_bits之一")
+            raise ValueError("Must provide one of: llr, received_signal, or received_bits")
         
-        # 验证LLR长度
+        # Validate LLR length
         if len(llr) != decoder.n:
-            raise ValueError(f"LLR长度{len(llr)}与码长{decoder.n}不匹配")
+            raise ValueError(f"LLR length {len(llr)} does not match code length {decoder.n}")
         
-        # 执行解码
+        # Perform decoding
         decoded_bits, stats = decoder.decode(llr, algorithm=request.algorithm)
         
-        # 提取信息位
+        # Extract information bits
         information_bits = decoder.extract_information_bits(decoded_bits)
         
-        # 获取码参数
+        # Get code parameters
         code_parameters = {
             "n": decoder.n,
             "k": decoder.k,
@@ -366,20 +366,20 @@ async def decode_ldpc(request: DecodeRequest):
             "rate": decoder.rate
         }
         
-        # 构建响应
+        # Build response
         return DecodeResponse(
             decoded_bits=decoded_bits.tolist(),
             information_bits=information_bits.tolist(),
             statistics=stats,
             h_matrix=h_matrix.tolist(),
             code_parameters=code_parameters,
-            message="LDPC解码成功"
+            message="LDPC decoding successful"
         )
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"解码失败: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Decoding failed: {str(e)}")
 
-# TODO: 添加其他API路由:
+# TODO: Add other API routes:
 # - POST /api/simulate
 # - POST /api/simulate-from-graph
 # - POST /api/optimize
@@ -387,19 +387,19 @@ async def decode_ldpc(request: DecodeRequest):
 # - WebSocket /ws/simulate/{session_id}
 # - WebSocket /ws/optimize/{session_id}
 
-@app.post("/api/simulate", response_model=SimulationResponse, tags=["仿真"])
+@app.post("/api/simulate", response_model=SimulationResponse, tags=["Simulation"])
 async def run_simulation(request: SimulationRequest):
-    """运行LDPC BER仿真"""
+    """Run LDPC BER simulation"""
     try:
-        # 验证校验矩阵
+        # Validate parity check matrix
         h_matrix = np.array(request.h_matrix, dtype=int)
         if h_matrix.size == 0:
-            raise ValueError("校验矩阵不能为空")
+            raise ValueError("Parity check matrix cannot be empty")
         
-        # 创建仿真引擎
+        # Create simulation engine
         engine = SimulationEngine(h_matrix)
         
-        # 配置仿真参数
+        # Configure simulation parameters
         config = SimulationConfig(
             snr_range=request.snr_range,
             frame_count=request.frames_per_snr,
@@ -408,16 +408,16 @@ async def run_simulation(request: SimulationRequest):
             decoder_algorithm=request.algorithm.lower() if hasattr(request, 'algorithm') else 'min_sum'
         )
         
-        # 运行仿真
+        # Run simulation
         results = engine.run_simulation(config)
         
         return {
             "simulation_results": results,
-            "message": "仿真完成"
+            "message": "Simulation completed"
         }
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"仿真失败: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Simulation failed: {str(e)}")
 
 @app.post("/api/quick-test", tags=["Quick Test"])
 @safe_operation("simulation")
@@ -533,9 +533,9 @@ async def api_quick_test(request_data: dict):
 @safe_operation("simulation")
 @monitor_performance
 async def api_simulate(request_data: dict):
-    """API端点：运行完整BER仿真"""
+    """API endpoint: Run complete BER simulation"""
     try:
-        # 提取参数
+        # Extract parameters
         h_matrix_data = request_data.get('h_matrix')
         snr_range = request_data.get('snr_range', [0.0, 2.0, 4.0])
         frames_per_point = request_data.get('frames_per_point', 1000)
@@ -544,12 +544,12 @@ async def api_simulate(request_data: dict):
         max_iterations = request_data.get('max_iterations', 100)
         target_errors = request_data.get('target_errors', 100)
         
-        # 验证H矩阵
+        # Validate H matrix
         if h_matrix_data is None:
-            raise ValueError("缺少H矩阵数据")
+            raise ValueError("Missing H matrix data")
             
         h_matrix = np.array(h_matrix_data, dtype=int)
-        print(f"仿真使用H矩阵: shape={h_matrix.shape}")
+        print(f"Simulation using H matrix: shape={h_matrix.shape}")
         
         engine = SimulationEngine(h_matrix)
         
@@ -566,14 +566,14 @@ async def api_simulate(request_data: dict):
         
         return {
             "simulation_results": result,
-            "message": "仿真完成"
+            "message": "Simulation completed"
         }
         
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
         print(f"Simulation error: {error_details}")
-        raise HTTPException(status_code=500, detail=f"仿真API失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Simulation API failed: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=9999, reload=True)

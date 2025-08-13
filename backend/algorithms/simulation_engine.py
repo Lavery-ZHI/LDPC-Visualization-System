@@ -1,4 +1,4 @@
-"""LDPC 仿真引擎模块 - 集成编码器和解码器进行 BER 性能仿真。"""
+"""LDPC Simulation Engine module - integrates encoder and decoder for BER performance simulation."""
 from __future__ import annotations
 
 import numpy as np
@@ -14,54 +14,54 @@ __all__ = ["SimulationEngine", "SimulationResults", "SimulationConfig"]
 
 @dataclass
 class SimulationConfig:
-    """仿真配置参数。"""
-    snr_range: List[float]  # SNR 范围 (dB)
-    frame_count: int = 1000  # 每个 SNR 点的帧数
-    max_errors: int = 100  # 最大错误帧数（早期停止条件）
-    min_frames: int = 100  # 最小仿真帧数
-    channel_type: str = "awgn"  # 信道类型: "awgn", "bsc"
-    decoder_algorithm: str = "min_sum"  # 解码算法
-    max_iterations: int = 50  # 解码最大迭代次数
-    min_sum_scaling: float = 0.9  # Min-Sum 缩放因子
-    early_termination: bool = True  # 解码早期终止
-    progress_interval: int = 10  # 进度回调间隔（帧数）
+    """Simulation configuration parameters."""
+    snr_range: List[float]  # SNR range (dB)
+    frame_count: int = 1000  # Number of frames per SNR point
+    max_errors: int = 100  # Maximum number of error frames (early stopping criterion)
+    min_frames: int = 100  # Minimum number of frames for simulation
+    channel_type: str = "awgn"  # Channel type: "awgn", "bsc"
+    decoder_algorithm: str = "min_sum"  # Decoding algorithm
+    max_iterations: int = 50  # Maximum decoding iterations
+    min_sum_scaling: float = 0.9  # Min-Sum scaling factor
+    early_termination: bool = True  # Early termination for decoding
+    progress_interval: int = 10  # Progress callback interval (number of frames)
 
 
 @dataclass
 class SimulationResults:
-    """仿真结果数据。"""
-    snr_db: List[float]  # SNR 点 (dB)
-    ber: List[float]  # 误比特率
-    fer: List[float]  # 误帧率
-    total_frames: List[int]  # 每个 SNR 点的总帧数
-    error_frames: List[int]  # 每个 SNR 点的错误帧数
-    avg_iterations: List[float]  # 平均迭代次数
-    simulation_time: float  # 总仿真时间 (秒)
-    config: SimulationConfig  # 仿真配置
+    """Simulation result data."""
+    snr_db: List[float]  # SNR points (dB)
+    ber: List[float]  # Bit Error Rate
+    fer: List[float]  # Frame Error Rate
+    total_frames: List[int]  # Total frames per SNR point
+    error_frames: List[int]  # Error frames per SNR point
+    avg_iterations: List[float]  # Average iterations
+    simulation_time: float  # Total simulation time (s)
+    config: SimulationConfig  # Simulation configuration
 
 
 class SimulationEngine:
-    """LDPC 仿真引擎 - 执行 BER/FER 性能仿真。"""
+    """LDPC Simulation Engine - performs BER/FER performance simulations."""
 
     def __init__(self, h_matrix: np.ndarray):
         """
-        初始化仿真引擎。
+        Initializes the simulation engine.
 
-        参数:
-            h_matrix: LDPC 奇偶校验矩阵
+        Args:
+            h_matrix: LDPC parity check matrix
         """
         self.h_matrix = np.asarray(h_matrix, dtype=int)
         
-        # 初始化编码器和解码器
+        # Initialize encoder and decoder
         self.encoder = LDPCEncoder(h_matrix)
         self.decoder = LDPCDecoder(h_matrix)
         
-        # 码参数
-        self.n = self.decoder.n  # 码长
-        self.k = self.decoder.k  # 信息位长度
-        self.rate = self.decoder.rate  # 码率
+        # Code parameters
+        self.n = self.decoder.n  # Codeword length
+        self.k = self.decoder.k  # Information bits length
+        self.rate = self.decoder.rate  # Code rate
         
-        # 仿真状态
+        # Simulation status
         self.is_running = False
         self.should_stop = False
 
@@ -71,25 +71,25 @@ class SimulationEngine:
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
     ) -> SimulationResults:
         """
-        运行 BER/FER 性能仿真。
+        Runs BER/FER performance simulation.
 
-        参数:
-            config: 仿真配置
-            progress_callback: 进度回调函数
+        Args:
+            config: Simulation configuration
+            progress_callback: Progress callback function
 
-        返回:
-            仿真结果
+        Returns:
+            Simulation results
         """
         self.is_running = True
         self.should_stop = False
         start_time = time.time()
 
-        # 更新解码器参数
+        # Update decoder parameters
         self.decoder.max_iterations = config.max_iterations
         self.decoder.min_sum_scaling = config.min_sum_scaling
         self.decoder.early_termination = config.early_termination
 
-        # 结果存储
+        # Results storage
         snr_results = []
         ber_results = []
         fer_results = []
@@ -103,7 +103,7 @@ class SimulationEngine:
             if self.should_stop:
                 break
 
-            # 单个 SNR 点仿真
+            # Simulate a single SNR point
             snr_result = self._simulate_snr_point(
                 snr_db, config, snr_idx, total_snr_points, progress_callback
             )
@@ -137,19 +137,19 @@ class SimulationEngine:
         total_snr_points: int,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
     ) -> Dict[str, Any]:
-        """仿真单个 SNR 点。"""
+        """Simulate a single SNR point."""
         
-        # 统计变量
+        # Statistics variables
         total_frames = 0
         error_frames = 0
         total_bit_errors = 0
         total_iterations = 0
 
-        # 噪声方差计算 (对于 AWGN)
+        # Noise variance calculation (for AWGN)
         if config.channel_type == "awgn":
             noise_variance = 10 ** (-snr_db / 10) / (2 * self.rate)
         elif config.channel_type == "bsc":
-            # BSC 的交叉概率与 SNR 的关系 (简化模型)
+            # Relationship between crossover probability and SNR for BSC (simplified model)
             crossover_prob = 0.5 * np.exp(-10 ** (snr_db / 10))
             crossover_prob = np.clip(crossover_prob, 1e-6, 0.49)
 
@@ -159,48 +159,48 @@ class SimulationEngine:
             if self.should_stop:
                 break
 
-            # 生成随机信息位
+            # Generate random information bits
             info_bits = np.random.randint(0, 2, self.k)
             
-            # 编码
+            # Encoding
             try:
                 encoded_bits = self.encoder.encode(info_bits)
             except Exception as e:
-                print(f"编码错误: {e}")
+                print(f"Encoding error: {e}")
                 continue
 
-            # 信道传输
+            # Channel transmission
             if config.channel_type == "awgn":
                 received_signal, received_bits = self._awgn_channel(
                     encoded_bits, noise_variance
                 )
-                # 计算 LLR
+                # Compute LLR
                 llr = self.decoder.awgn_llr(received_signal, noise_variance)
             elif config.channel_type == "bsc":
                 received_bits = self._bsc_channel(encoded_bits, crossover_prob)
-                # 计算 LLR
+                # Compute LLR
                 llr = self.decoder.bsc_llr(received_bits, crossover_prob)
             else:
-                raise ValueError(f"不支持的信道类型: {config.channel_type}")
+                raise ValueError(f"Unsupported channel type: {config.channel_type}")
 
-            # 解码
+            # Decoding
             try:
                 decoded_bits, decode_stats = self.decoder.decode(
                     llr, config.decoder_algorithm
                 )
                 total_iterations += decode_stats['iterations']
             except Exception as e:
-                print(f"解码错误: {e}")
+                print(f"Decoding error: {e}")
                 continue
 
-            # 提取信息位
+            # Extract information bits
             try:
                 decoded_info_bits = self.decoder.extract_information_bits(decoded_bits)
             except Exception as e:
-                print(f"信息位提取错误: {e}")
+                print(f"Information bit extraction error: {e}")
                 continue
 
-            # 错误统计
+            # Error statistics
             bit_errors = np.sum(info_bits != decoded_info_bits)
             total_bit_errors += bit_errors
             
@@ -209,7 +209,7 @@ class SimulationEngine:
 
             total_frames += 1
 
-            # 进度回调
+            # Progress callback
             if (progress_callback and 
                 total_frames % config.progress_interval == 0):
                 
@@ -229,7 +229,7 @@ class SimulationEngine:
                 }
                 progress_callback(progress_info)
 
-        # 计算最终结果
+        # Calculate final results
         ber = total_bit_errors / (total_frames * self.k) if total_frames > 0 else 0
         fer = error_frames / total_frames if total_frames > 0 else 0
         avg_iterations = total_iterations / total_frames if total_frames > 0 else 0
@@ -243,32 +243,32 @@ class SimulationEngine:
         }
 
     def _awgn_channel(self, transmitted_bits: np.ndarray, noise_variance: float) -> Tuple[np.ndarray, np.ndarray]:
-        """AWGN 信道模拟。"""
-        # BPSK 调制: 0 -> +1, 1 -> -1
+        """AWGN channel simulation."""
+        # BPSK modulation: 0 -> +1, 1 -> -1
         transmitted_signal = 1 - 2 * transmitted_bits.astype(float)
         
-        # 添加高斯噪声
+        # Add Gaussian noise
         noise = np.random.normal(0, np.sqrt(noise_variance), len(transmitted_signal))
         received_signal = transmitted_signal + noise
         
-        # 硬判决 (仅用于统计)
+        # Hard decision (for statistics only)
         received_bits = (received_signal < 0).astype(int)
         
         return received_signal, received_bits
 
     def _bsc_channel(self, transmitted_bits: np.ndarray, crossover_prob: float) -> np.ndarray:
-        """BSC 信道模拟。"""
-        # 生成随机翻转模式
+        """BSC channel simulation."""
+        # Generate random flip pattern
         flip_mask = np.random.random(len(transmitted_bits)) < crossover_prob
         received_bits = transmitted_bits ^ flip_mask.astype(int)
         return received_bits
 
     def stop_simulation(self):
-        """停止仿真。"""
+        """Stop simulation."""
         self.should_stop = True
 
     def get_code_info(self) -> Dict[str, Any]:
-        """获取码信息。"""
+        """Get code information."""
         return {
             'n': self.n,
             'k': self.k,
@@ -279,12 +279,12 @@ class SimulationEngine:
         }
 
     def estimate_simulation_time(self, config: SimulationConfig) -> float:
-        """估算仿真时间（秒）。"""
-        # 基于经验公式估算
+        """Estimate simulation time (seconds)."""
+        # Estimate based on empirical formula
         frames_per_snr = config.frame_count
         snr_points = len(config.snr_range)
         
-        # 假设每帧平均处理时间（毫秒）
+        # Assume average processing time per frame (milliseconds)
         time_per_frame_ms = 0.1 + (self.n * config.max_iterations * 0.001)
         
         total_time_seconds = (frames_per_snr * snr_points * time_per_frame_ms) / 1000
@@ -292,11 +292,11 @@ class SimulationEngine:
         return total_time_seconds
 
     def run_quick_test(self, snr_db: float, frames: int = 100) -> Dict[str, Any]:
-        """快速测试单个 SNR 点。"""
+        """Quick test for a single SNR point."""
         config = SimulationConfig(
             snr_range=[snr_db],
             frame_count=frames,
-            max_errors=frames,  # 不提前停止
+            max_errors=frames,  # Do not stop early
             min_frames=frames
         )
         
@@ -322,7 +322,7 @@ class SimulationEngine:
             }
 
     def run_simulation(self, config: SimulationConfig) -> Dict[str, Any]:
-        """运行仿真并返回字典格式结果（用于API）。"""
+        """Run simulation and return results as a dictionary (for API)."""
         results = self.run_ber_simulation(config)
         
         return {
@@ -343,23 +343,23 @@ class SimulationEngine:
         }
 
 
-# 辅助函数
+# Helper functions
 def create_snr_range(start: float, stop: float, step: float) -> List[float]:
-    """创建 SNR 范围。"""
+    """Create SNR range."""
     return list(np.arange(start, stop + step/2, step))
 
 
 def format_simulation_summary(results: SimulationResults) -> str:
-    """格式化仿真结果摘要。"""
-    summary = f"LDPC 仿真结果摘要\n"
-    summary += f"={'='*50}\n"
-    summary += f"码参数: n={results.config.snr_range}, k={len(results.snr_db)}\n"
-    summary += f"仿真帧数: {results.config.frame_count}\n"
-    summary += f"信道类型: {results.config.channel_type}\n"
-    summary += f"解码算法: {results.config.decoder_algorithm}\n"
-    summary += f"仿真时间: {results.simulation_time:.2f} 秒\n\n"
-    
-    summary += f"{'SNR(dB)':<8} {'BER':<12} {'FER':<12} {'帧数':<8} {'迭代':<8}\n"
+    """Format simulation result summary."""
+    summary = f"LDPC Simulation Results Summary\n"
+    summary += f"{'='*50}\n"
+    summary += f"Code parameters: n={results.config.snr_range}, k={len(results.snr_db)}\n"
+    summary += f"Frame count: {results.config.frame_count}\n"
+    summary += f"Channel type: {results.config.channel_type}\n"
+    summary += f"Decoding algorithm: {results.config.decoder_algorithm}\n"
+    summary += f"Simulation time: {results.simulation_time:.2f} s\n\n"
+
+    summary += f"{'SNR(dB)':<8} {'BER':<12} {'FER':<12} {'Frames':<8} {'Iterations':<10}\n"
     summary += f"{'-'*50}\n"
     
     for i in range(len(results.snr_db)):
@@ -370,3 +370,41 @@ def format_simulation_summary(results: SimulationResults) -> str:
         summary += f"{results.avg_iterations[i]:<8.1f}\n"
     
     return summary
+
+
+if __name__ == '__main__':
+    # Example: create a simple LDPC code and run simulation
+    from models.ldpc_code_tools import make_ldpc_from_alist
+    
+    # Create H matrix from alist file
+    alist_file = "path/to/your/code.alist"  # Replace with your alist file path
+    try:
+        H, _ = make_ldpc_from_alist(alist_file)
+    except FileNotFoundError:
+        print("Alist file not found. Using a simple parity check matrix for demonstration.")
+        H = np.array([[1, 1, 1, 0, 0, 0],
+                      [0, 0, 1, 1, 1, 0],
+                      [1, 0, 0, 0, 1, 1]], dtype=int)
+
+    # Create simulation engine
+    engine = SimulationEngine(H)
+    
+    # Configure simulation
+    snr_range = create_snr_range(0, 4, 0.5)
+    config = SimulationConfig(
+        snr_range=snr_range,
+        frame_count=1000,
+        max_errors=100,
+        decoder_algorithm="min_sum"
+    )
+    
+    # Run simulation
+    results = engine.run_ber_simulation(config)
+    
+    # Print results
+    print(format_simulation_summary(results))
+    
+    # Quick test
+    quick_test_results = engine.run_quick_test(snr_db=3.0, frames=200)
+    print("\nQuick Test Results:")
+    print(quick_test_results)

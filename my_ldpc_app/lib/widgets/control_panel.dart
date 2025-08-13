@@ -19,31 +19,31 @@ class ControlPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'LDPC Designer',
+                'LDPC Studio',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 16),
 
-              // 图构建部分
+              // Graph Building Section
               _buildGraphSection(context),
               const SizedBox(height: 16),
 
-              // 编码生成部分
+              // Encoding Generation Section
               _buildEncodingSection(context),
               const SizedBox(height: 16),
 
-              // 解码部分
+              // Decoding Section
               _buildDecodingSection(context),
               const SizedBox(height: 16),
 
-              // 仿真部分
+              // Simulation Section
               _buildSimulationSection(context),
               const SizedBox(height: 16),
 
-              // 操作按钮
+              // Action Buttons
               _buildActionButtons(context),
 
-              // 底部间距
+              // Bottom Spacing
               const SizedBox(height: 20),
             ],
           ),
@@ -543,14 +543,14 @@ class ControlPanel extends StatelessWidget {
               TextField(
                 controller: appProvider.crossoverProbabilityController,
                 decoration: const InputDecoration(
-                  labelText: 'Error Probability (信道错误率)',
+                  labelText: 'Error Probability',
                   border: OutlineInputBorder(),
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 8,
                   ),
-                  helperText: 'BSC信道中每个比特的翻转概率',
+                  helperText: 'Bit flip probability in BSC channel',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -559,10 +559,10 @@ class ControlPanel extends StatelessWidget {
               Wrap(
                 spacing: 4,
                 children: [
-                  _buildErrorProbabilityPreset(appProvider, '0.01', '优质信道'),
-                  _buildErrorProbabilityPreset(appProvider, '0.05', '良好信道'),
-                  _buildErrorProbabilityPreset(appProvider, '0.1', '一般信道'),
-                  _buildErrorProbabilityPreset(appProvider, '0.2', '较差信道'),
+                  _buildErrorProbabilityPreset(appProvider, '0.01', 'High Quality'),
+                  _buildErrorProbabilityPreset(appProvider, '0.05', 'Good Quality'),
+                  _buildErrorProbabilityPreset(appProvider, '0.1', 'Average Quality'),
+                  _buildErrorProbabilityPreset(appProvider, '0.2', 'Poor Quality'),
                 ],
               ),
             ],

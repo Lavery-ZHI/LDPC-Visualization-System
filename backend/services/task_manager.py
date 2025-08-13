@@ -8,10 +8,10 @@ class TaskManager:
         self.tasks: Dict[str, Dict[str, Any]] = {}
 
     async def create_task(self, coroutine: Coroutine, task_type: str) -> str:
-        """创建并管理一个异步任务"""
+        """Create and manage an async task"""
         task_id = str(uuid.uuid4())
 
-        # 创建任务字典
+        # Create task dictionary
         task_info = {
             "id": task_id,
             "type": task_type,
@@ -21,16 +21,16 @@ class TaskManager:
             "error": None
         }
 
-        # 保存任务信息
+        # Save task information
         self.tasks[task_id] = task_info
 
-        # 创建任务并运行
+        # Create and run task
         task = asyncio.create_task(self._run_task(task_id, coroutine))
 
         return task_id
 
     async def _run_task(self, task_id: str, coroutine: Coroutine):
-        """运行任务并处理结果"""
+        """Run task and handle results"""
         try:
             result = await coroutine
             self.tasks[task_id]["result"] = result
@@ -42,14 +42,14 @@ class TaskManager:
             self.tasks[task_id]["completed_at"] = time.time()
 
     def get_task_status(self, task_id: str) -> Dict[str, Any]:
-        """获取任务状态"""
+        """Get task status"""
         if task_id not in self.tasks:
             return {"status": "not_found"}
 
         return self.tasks[task_id]
 
     def clean_old_tasks(self, max_age_seconds: int = 3600):
-        """清理旧的已完成任务"""
+        """Clean up old completed tasks"""
         current_time = time.time()
         task_ids_to_remove = []
 
