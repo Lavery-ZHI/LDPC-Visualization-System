@@ -2,7 +2,7 @@
 
 An interactive LDPC (Low-Density Parity-Check) code visualization and simulation system featuring a Flutter cross-platform frontend and Python FastAPI backend.
 
-## 📋 Features
+## Features
 
 - **Interactive Tanner Graph Editor**: Drag-and-drop construction of LDPC codes
 - **Multiple Decoding Algorithms**: Min-Sum and Sum-Product belief propagation
@@ -12,7 +12,7 @@ An interactive LDPC (Low-Density Parity-Check) code visualization and simulation
 - **Matrix Visualization**: Interactive H-matrix and G-matrix viewers
 - **Template Library**: Pre-built LDPC code templates
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 LDPC-Visualization-System/
@@ -30,7 +30,7 @@ LDPC-Visualization-System/
     └── web/               # Web build assets
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Backend Setup
 
@@ -75,7 +75,7 @@ For Windows users, use the batch file:
 start_full_app.bat
 ```
 
-## 📊 Core Algorithms
+## Core Algorithms
 
 ### LDPC Encoding
 - Systematic encoding with generator matrix computation
@@ -94,7 +94,7 @@ start_full_app.bat
 - Real-time progress tracking
 - Early stopping criteria for efficient simulation
 
-## 🔧 API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -104,7 +104,7 @@ start_full_app.bat
 | `/api/quick-test` | POST | Single SNR point rapid testing |
 | `/api/matrix-templates` | GET | Available LDPC matrix templates |
 
-## 📱 Frontend Features
+## Frontend Features
 
 - **Responsive Design**: Adaptive layouts for different screen sizes
 - **Interactive Canvas**: Real-time graph editing with visual feedback
@@ -112,7 +112,7 @@ start_full_app.bat
 - **Material Design**: Modern UI following Material Design principles
 - **Cross-platform**: Single codebase for multiple platforms
 
-## 🧪 Testing
+## Testing
 
 ### Backend Tests
 ```bash
@@ -129,13 +129,9 @@ cd my_ldpc_app
 flutter test                              # Widget tests
 ```
 
-## 📄 Documentation
 
-- [Technical Documentation](LDPC可视化编解码仿真系统详细技术文档.md)
-- [Source Code Appendix](Appendix_A_Source_Code.md)
-- [Development Guide](CLAUDE.md)
 
-## 🛠️ Technologies Used
+## Technologies Used
 
 ### Backend
 - **FastAPI**: Modern Python web framework
@@ -149,14 +145,14 @@ flutter test                              # Widget tests
 - **Dio**: HTTP client for API communication
 - **FL Chart**: Data visualization library
 
-## 📈 Performance
+## Performance
 
 - **Matrix Operations**: Optimized sparse matrix algorithms
 - **Memory Efficiency**: Lazy evaluation and caching
 - **Simulation Speed**: Multi-threaded processing support
 - **Real-time Updates**: WebSocket-based progress streaming
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
@@ -164,15 +160,15 @@ flutter test                              # Widget tests
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+## License
 
 This project is developed for academic research purposes.
 
-## 📧 Contact
+## Contact
 
-Project Link: [https://github.com/[your-username]/LDPC-Visualization-System](https://github.com/[your-username]/LDPC-Visualization-System)
+Project Link: [https://github.com/Lavery-ZHI/LDPC-Visualization-System](https://github.com/Lavery-ZHI/LDPC-Visualization-System)
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - LDPC coding theory research community
 - Flutter and FastAPI development teams
