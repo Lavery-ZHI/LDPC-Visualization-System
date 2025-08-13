@@ -68,12 +68,7 @@ LDPC-Visualization-System/
    flutter run -d windows   # For Windows desktop
    ```
 
-### Quick Start Script
 
-For Windows users, use the batch file:
-```bash
-start_full_app.bat
-```
 
 ## Core Algorithms
 
